@@ -15,6 +15,8 @@ SERVER_HOSTNAME="localhost"
 APP_ENV="development"
 HYDRA_HEAD="geoblacklight"
 HYDRA_HEAD_DIR="$INSTALL_DIR/$HYDRA_HEAD"
+HYDRA_HEAD_GIT_BRANCH="master"
+HYDRA_HEAD_GIT_REPO_URL="https://github.com/VTUL/geoblacklight.git"
 PASSENGER_REPO="/etc/apt/sources.list.d/passenger.list"
 PASSENGER_INSTANCES="1"
 NGINX_CONF_DIR="/etc/nginx"
@@ -25,6 +27,24 @@ SSL_CERT_DIR="/etc/ssl/local/certs"
 SSL_CERT="$SSL_CERT_DIR/$HYDRA_HEAD-crt.pem"
 SSL_KEY_DIR="/etc/ssl/local/private"
 SSL_KEY="$SSL_KEY_DIR/$HYDRA_HEAD-key.pem"
+# User under which Solr runs.  We adopt the default, "solr"
+SOLR_USER="solr"
+# Which Solr version we will install
+SOLR_VERSION="5.5.2"
+SOLR_MIRROR="http://archive.apache.org/dist/lucene/solr/$SOLR_VERSION/"
+SOLR_DIST="solr-$SOLR_VERSION"
+# The directory under which we will install Solr.
+SOLR_INSTALL="/opt"
+# The directory under which Solr cores and other mutable Solr data live.
+SOLR_MUTABLE="/var/solr"
+# Where Solr cores live
+SOLR_DATA="$SOLR_MUTABLE/data"
+# The size at which Solr logs will be rotated
+SOLR_LOGSIZE="100MB"
+# Name of GeoBlacklight Solr core.  NB: If you change this you should also
+# change the Solr URL in config/blacklight.yml accordingly
+SOLR_CORE="blacklight-core"
+RUN_AS_SOLR_USER="sudo -H -u $SOLR_USER"
 
 apt-get update
 apt-get dist-upgrade -y
@@ -49,8 +69,7 @@ apt-get install -y nginx-extras passenger
 TMPFILE=`/bin/mktemp`
 cat $NGINX_CONF_FILE | \
   sed "s/worker_processes .\+;/worker_processes auto;/" | \
-  sed "s/# passenger_root/passenger_root/" | \
-  sed "s/# passenger_ruby/passenger_ruby/" > $TMPFILE
+  sed "s@# include /etc/nginx/passenger.conf;@include /etc/nginx/passenger.conf;@" > $TMPFILE
 sed "1ienv PATH;" < $TMPFILE > $NGINX_CONF_FILE
 chown root: $NGINX_CONF_FILE
 chmod 644 $NGINX_CONF_FILE
@@ -93,68 +112,69 @@ chmod 444 "$SSL_CERT"
 chown root "$SSL_CERT"
 chmod 400 "$SSL_KEY"
 chown root "$SSL_KEY"
+
+# Install GeoBlacklight prerequisites and application
 apt-get install -y git sqlite3 libsqlite3-dev zlib1g-dev build-essential
 # Install a JavaScript runtime to allow the uglifier gem to run
 apt-get install -y nodejs
-gem install rails -v "~> 4.2.5" -N
-$RUN_AS_INSTALLUSER rails new $HYDRA_HEAD -m https://raw.githubusercontent.com/geoblacklight/geoblacklight/master/template.rb
-cd $HYDRA_HEAD
-$RUN_AS_INSTALLUSER bundle exec rake jetty:download
-$RUN_AS_INSTALLUSER bundle exec rake jetty:unzip
-$RUN_AS_INSTALLUSER bundle exec rake geoblacklight:configure_jetty
-cat > /etc/init.d/hydra-jetty <<END_OF_INIT_SCRIPT
-#!/bin/sh
-# Init script to start up hydra-jetty services
-# Warning: This script is auto-generated.
-
-### BEGIN INIT INFO
-# Provides: hydra-jetty
-# Required-Start:    \$remote_fs \$syslog
-# Required-Stop:     \$remote_fs \$syslog
-# Default-Start:     2 3 4 5
-# Default-Stop:      0 1 6
-# Description:       Controls Hydra-Jetty Services
-### END INIT INFO
-
-# verify the specified run as user exists
-runas_uid=\$(id -u $INSTALL_USER)
-if [ \$? -ne 0 ]; then
-  echo "User $INSTALL_USER not found! Please create the $INSTALL_USER user before running this script."
-  exit 1
+gem install bundler
+cd "$INSTALL_DIR"
+$RUN_AS_INSTALLUSER git clone --branch "$HYDRA_HEAD_GIT_BRANCH" "$HYDRA_HEAD_GIT_REPO_URL" "$HYDRA_HEAD_DIR"
+cd "$HYDRA_HEAD_DIR"
+if [ "$APP_ENV" = "production" ]; then
+  $RUN_AS_INSTALLUSER bundle install --without development test
+else
+  $RUN_AS_INSTALLUSER bundle install
 fi
-. /lib/lsb/init-functions
 
-start() {
-  cd "${HYDRA_HEAD_DIR}"
-  sudo -H -u $INSTALL_USER RAILS_ENV=${APP_ENV} bundle exec rake jetty:start
-}
+# Set up the GeoBlacklight application
+if [ ! -f config/secrets.yml ]; then
+  cat > config/secrets.yml <<END_OF_SECRETS
+${APP_ENV}:
+  secret_key_base: $(openssl rand -hex 64)
+END_OF_SECRETS
+fi
+$RUN_AS_INSTALLUSER RAILS_ENV=${APP_ENV} bundle exec rake db:setup
 
-stop() {
-  cd "${HYDRA_HEAD_DIR}"
-  sudo -H -u $INSTALL_USER RAILS_ENV=${APP_ENV} bundle exec rake jetty:stop
-}
+# Application Deployment steps.
+if [ "$APP_ENV" = "production" ]; then
+    $RUN_AS_INSTALLUSER RAILS_ENV=${APP_ENV} bundle exec rake assets:precompile
+fi
 
-status() {
-  cd "${HYDRA_HEAD_DIR}"
-  sudo -H -u $INSTALL_USER RAILS_ENV=${APP_ENV} bundle exec rake jetty:status
-}
+# Install Solr
+cd "$INSTALL_DIR"
+# Fetch the Solr distribution and unpack the install script
+wget -q "$SOLR_MIRROR/$SOLR_DIST.tgz"
+tar xzf $SOLR_DIST.tgz $SOLR_DIST/bin/install_solr_service.sh --strip-components=2
+# Install and start the service using the install script
+bash ./install_solr_service.sh $SOLR_DIST.tgz -u $SOLR_USER -d $SOLR_MUTABLE -i $SOLR_INSTALL
+# Remove Solr distribution
+rm $SOLR_DIST.tgz
+rm ./install_solr_service.sh
+# Stop Solr until we have created the core
+service solr stop
 
-case "\$1" in
-  start)   start ;;
-  stop)    stop ;;
-  restart) stop
-           sleep 1
-           start
-           ;;
-  status)  status ;;
-  *)
-    echo "Usage: \$0 {start|stop|restart|status}"
-    exit
-esac
-END_OF_INIT_SCRIPT
-chmod 755 /etc/init.d/hydra-jetty
-chown root:root /etc/init.d/hydra-jetty
-update-rc.d hydra-jetty defaults
+# Fetch GeoBlacklight schema files
+TMPFILE=$(mktemp -d)
+cd "$TMPFILE"
+git clone https://github.com/geoblacklight/geoblacklight-schema.git
+
+# Create Sufia Solr core
+cd $SOLR_DATA
+$RUN_AS_SOLR_USER mkdir -p ${SOLR_CORE}/conf
+$RUN_AS_SOLR_USER echo "name=$SOLR_CORE" > ${SOLR_CORE}/core.properties
+install -o $SOLR_USER -m 444 $TMPFILE/geoblacklight-schema/conf/solrconfig.xml ${SOLR_CORE}/conf/solrconfig.xml
+install -o $SOLR_USER -m 444 $TMPFILE/geoblacklight-schema/conf/schema.xml ${SOLR_CORE}/conf/schema.xml
+install -o $SOLR_USER -m 444 $TMPFILE/geoblacklight-schema/conf/protwords.txt ${SOLR_CORE}/conf/protwords.txt
+install -o $SOLR_USER -m 444 $TMPFILE/geoblacklight-schema/conf/stopwords_en.txt ${SOLR_CORE}/conf/stopwords_en.txt
+install -o $SOLR_USER -m 444 $TMPFILE/geoblacklight-schema/conf/synonyms.txt ${SOLR_CORE}/conf/synonyms.txt
+
+# Adjust logging settings
+$RUN_AS_SOLR_USER sed -i 's/^log4j.rootLogger=.*$/log4j.rootLogger=WARN, file/' /var/solr/log4j.properties
+$RUN_AS_SOLR_USER sed -i "s/file.MaxFileSize=.*$/file.MaxFileSize=${SOLR_LOGSIZE}/" /var/solr/log4j.properties
+# Remove GeoBlacklight schema repository files now we have installed them
+rm -rf "$TMPFILE"
+
 # Start services
-service hydra-jetty start
+service solr start
 service nginx start

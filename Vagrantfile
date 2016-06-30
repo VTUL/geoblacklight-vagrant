@@ -11,7 +11,7 @@ Vagrant.configure(2) do |config|
   config.vm.provider :virtualbox do |vb, override|
     override.vm.network :private_network, ip: "192.168.0.2"
     # Customize the amount of memory on the VM:
-    vb.memory = "2048"
+    vb.memory = "3072"
     override.vm.provision :shell, path: "install_geoblacklight.sh", args: "vagrant"
   end
 

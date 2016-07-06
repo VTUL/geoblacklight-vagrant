@@ -1,10 +1,19 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
-# All Vagrant configuration is done below. The "2" in Vagrant.configure
-# configures the configuration version (we support older styles for
-# backwards compatibility). Please don't change it unless you know what
-# you're doing.
+# To install under OpenStack the Vagrant openstack provider needs to be installed.
+# You can install this plugin by running the following command:
+#
+#   vagrant plugin install vagrant-openstack-plugin
+#
+# To install under AWS you need to have the vagrant-aws provider plugin installed.
+# You can install this using the following command:
+#
+#   vagrant plugin install vagrant-aws
+#
+# If no "--provider" is specified during "vagrant up" then the default
+# (VirtualBox) provider will be used.
+
 Vagrant.configure(2) do |config|
   config.vm.box = "ubuntu/trusty64"
   # Providers
@@ -19,8 +28,9 @@ Vagrant.configure(2) do |config|
     keypair = ENV['KEYPAIR_NAME']
     keypath = ENV['KEYPAIR_PATH']
     override.vm.synced_folder '.', '/vagrant', :disabled => true
-    override.vm.box = "dummy"
+    override.vm.box = "aws_dummy"
     override.vm.box_url = "https://github.com/mitchellh/vagrant-aws/raw/master/dummy.box"
+    override.vm.box_check_update = false
     aws.access_key_id = ENV['AWS_ACCESS_KEY']
     aws.secret_access_key = ENV['AWS_SECRET_KEY']
     aws.keypair_name = keypair
@@ -34,6 +44,29 @@ Vagrant.configure(2) do |config|
     aws.tags = {
       'Name' => "GeoBlacklight #{keypair}"
     }
-    override.vm.provision "shell", path: "install_geoblacklight.sh", args: "ubuntu"
+    override.vm.provision :shell, path: "install_geoblacklight.sh", args: "ubuntu"
+  end
+
+  config.vm.provider :openstack do |os, override|
+    keypair = "#{ENV['KEYPAIR_NAME']}"
+    keypath = "#{ENV['KEYPAIR_PATH']}"
+    override.vm.synced_folder '.', '/vagrant', :disabled => true
+    override.vm.box = "openstack_dummy"
+    override.vm.box_url = "https://github.com/cloudbau/vagrant-openstack-plugin/raw/master/dummy.box"
+    override.vm.box_check_update = false
+    override.ssh.private_key_path = "#{keypath}/#{keypair}"
+    os.username     = "#{ENV['OS_USERNAME']}"  # e.g. "#{ENV['OS_USERNAME']}"
+    os.api_key      = "#{ENV['OS_PASSWORD']}"  # e.g. "#{ENV['OS_PASSWORD']}"
+    os.flavor       = /m1.medium/               # Regex or String
+    os.image        = /Ubuntu-Server-14.04-LTS/# Regex or String
+    os.endpoint     = "#{ENV['OS_AUTH_URL']}/tokens" # e.g. "#{ENV['OS_AUTH_URL']}/tokens"
+    os.keypair_name = keypair # as stored in Nova
+    os.ssh_username = "cc"           # login for the VM
+    os.security_groups = ['web', 'vt-ssh']
+    os.floating_ip  = "#{ENV['OS_FLOATING_IP']}"
+    os.server_name  = "GeoBlacklight"
+    os.tenant       = "#{ENV['OS_TENANT_NAME']}"
+    os.region       = "#{ENV['OS_REGION_NAME']}"
+    override.vm.provision :shell, path: "install_geoblacklight.sh", args: "cc"
   end
 end

@@ -47,7 +47,7 @@ SOLR_CORE="blacklight-core"
 RUN_AS_SOLR_USER="sudo -H -u $SOLR_USER"
 
 apt-get update
-apt-get dist-upgrade -y
+DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" dist-upgrade
 
 apt-get install software-properties-common -y
 # Install Java 8 and make it the default Java

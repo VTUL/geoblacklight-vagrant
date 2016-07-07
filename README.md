@@ -25,8 +25,8 @@ Configuration
 
 When using the `aws` provider to `vagrant up` it is necessary to define several environment variables in order to authenticate to AWS and supply a keypair with which Vagrant can log in to the new AWS EC2 instance being deployed.  These environment variables are as follows:
 
-- `KEYPAIR_NAME`: the name of the AWS keypair that will be used to log in to the instance. This should also be the same as the keypair private key file.  This keypair should already exist within your AWS account and its private key file should reside on the local system.
-- `KEYPAIR_PATH`: the path of the directory on the local system in which the aforementioned keypair private key file resides (e.g., `~/.ssh`).
+- `KEYPAIR_NAME`: the name of the AWS keypair that will be used to log in to the instance. This keypair should already exist within your AWS account and its private key file should reside on the local system.
+- `KEYPAIR_FILE`: the pathname of the private key on the local system corresponding to the aforementioned keypair.
 - `AWS_ACCESS_KEY`: the AWS IAM access key to the account under which the EC2 instance will be created.
 - `AWS_SECRET_KEY`: the AWS IAM secret key to the account under which the EC2 instance will be created.
 
@@ -36,8 +36,8 @@ WARNING: Many of the other AWS EC2 instance settings (e.g., instance type, secur
 
 When deploying to the OpenStack Chameleon Cloud, several environment variables must be defined in order to authenticate to OpenStack and define a keypair to be used to log in to the new Chameleon Cloud instance being deployed.  The following environment variables must be defined:
 
-- `KEYPAIR_NAME`: the name of the OpenStack keypair that will be used to log in to the instance. This should also be the same as the keypair private key file.  This keypair should already exist within your OpenStack account and its private key file should reside on the local system.
-- `KEYPAIR_PATH`: the path of the directory on the local system in which the aforementioned keypair private key file resides (e.g., `~/.ssh`).
+- `KEYPAIR_NAME`: the name of the OpenStack keypair that will be used to log in to the instance. This keypair should already exist within your OpenStack account and its private key file should reside on the local system.
+- `KEYPAIR_FILE`: the pathname of the private key on the local system corresponding to the aforementioned keypair.
 - `OS_FLOATING_IP`: The floating IP address (as a "dotted quad", i.e., x.x.x.x) to be assigned to this instance. This floating IP must already be available to the OpenStack project under which the instance is being deployed.
 - `OS_USERNAME`: your OpenStack user name
 - `OS_PASSWORD`: your OpenStack login password

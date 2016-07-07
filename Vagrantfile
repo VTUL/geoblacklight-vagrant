@@ -25,8 +25,8 @@ Vagrant.configure(2) do |config|
   end
 
   config.vm.provider :aws do |aws, override|
-    keypair = ENV['KEYPAIR_NAME']
-    keypath = ENV['KEYPAIR_PATH']
+    keypair = "#{ENV['KEYPAIR_NAME']}"
+    keypair_filename = "#{ENV['KEYPAIR_FILE']}"
     override.vm.synced_folder '.', '/vagrant', :disabled => true
     override.vm.box = "aws_dummy"
     override.vm.box_url = "https://github.com/mitchellh/vagrant-aws/raw/master/dummy.box"
@@ -40,7 +40,7 @@ Vagrant.configure(2) do |config|
     aws.security_groups = ["default_vpc_web_vt_ssh"]
     #aws.associate_public_ip = true
     override.ssh.username = "ubuntu"
-    override.ssh.private_key_path = "#{keypath}/#{keypair}"
+    override.ssh.private_key_path = "#{keypair_filename}"
     aws.tags = {
       'Name' => "GeoBlacklight #{keypair}"
     }
@@ -49,12 +49,12 @@ Vagrant.configure(2) do |config|
 
   config.vm.provider :openstack do |os, override|
     keypair = "#{ENV['KEYPAIR_NAME']}"
-    keypath = "#{ENV['KEYPAIR_PATH']}"
+    keypair_filename = "#{ENV['KEYPAIR_FILE']}"
     override.vm.synced_folder '.', '/vagrant', :disabled => true
     override.vm.box = "openstack_dummy"
     override.vm.box_url = "https://github.com/cloudbau/vagrant-openstack-plugin/raw/master/dummy.box"
     override.vm.box_check_update = false
-    override.ssh.private_key_path = "#{keypath}/#{keypair}"
+    override.ssh.private_key_path = "#{keypair_filename}"
     os.username     = "#{ENV['OS_USERNAME']}"  # e.g. "#{ENV['OS_USERNAME']}"
     os.api_key      = "#{ENV['OS_PASSWORD']}"  # e.g. "#{ENV['OS_PASSWORD']}"
     os.flavor       = /m1.medium/               # Regex or String

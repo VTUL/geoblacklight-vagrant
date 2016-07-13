@@ -49,6 +49,13 @@ RUN_AS_SOLR_USER="sudo -H -u $SOLR_USER"
 apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" dist-upgrade
 
+# Install Postfix MTA
+debconf-set-selections <<< "postfix postfix/mailname string `hostname`"
+debconf-set-selections <<< "postfix postfix/main_mailer_type string 'Internet Site'"
+apt-get install -y postfix
+postconf -e inet_interfaces=localhost
+service postfix restart
+
 apt-get install software-properties-common -y
 # Install Java 8 and make it the default Java
 add-apt-repository -y ppa:webupd8team/java

@@ -45,6 +45,9 @@ SOLR_LOGSIZE="100MB"
 # change the Solr URL in config/blacklight.yml accordingly
 SOLR_CORE="blacklight-core"
 RUN_AS_SOLR_USER="sudo -H -u $SOLR_USER"
+SFTP_USER="upload"
+SFTP_HOME_DIR="/home/$SFTP_USER"
+SFTP_UPLOAD_ROOT="/opt/sftp/geodata"
 
 apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" dist-upgrade
@@ -55,6 +58,52 @@ debconf-set-selections <<< "postfix postfix/main_mailer_type string 'Internet Si
 apt-get install -y postfix
 postconf -e inet_interfaces=localhost
 service postfix restart
+
+# Create SFTP upload user and area.  The upload user is created with "-U"
+# so that an associated group of the same name is created.  This group is
+# used to allow the upload user access to the ingest area file hierarchy.
+mkdir -p "$SFTP_HOME_DIR"
+useradd -d "$SFTP_HOME_DIR" -U -s /usr/lib/openssh/sftp-server $SFTP_USER
+# Make upload user's .ssh/authorized_keys file
+mkdir "$SFTP_HOME_DIR/.ssh"
+chown $SFTP_USER "$SFTP_HOME_DIR/.ssh"
+chmod 500 "$SFTP_HOME_DIR/.ssh"
+if [ -f /vagrant/files/authorized_keys ]; then
+  install -m 444 /vagrant/files/authorized_keys "$SFTP_HOME_DIR/.ssh/authorized_keys"
+else
+  echo "WARNING: No authorized_keys file!"
+  echo "Upload user will not be able to sftp to system until you provide one."
+fi
+# Create SFTP chroot area with GeoBlacklight user owning most directories (for
+# the ingest script to be able to write to them) and the upload user's
+# group being the group owner of them.  Root must own the root directory
+# of the chroot area and all preceding directories in the path for
+# StrictModes to be satisfied.
+mkdir -p "$SFTP_UPLOAD_ROOT"
+chown root:root "$SFTP_UPLOAD_ROOT"
+chmod 755 "$SFTP_UPLOAD_ROOT"
+mkdir "${SFTP_UPLOAD_ROOT}/Upload"
+chown ${INSTALL_USER}:${SFTP_USER} "${SFTP_UPLOAD_ROOT}/Upload"
+chmod 770 "${SFTP_UPLOAD_ROOT}/Upload"
+mkdir "${SFTP_UPLOAD_ROOT}/Archive"
+mkdir "${SFTP_UPLOAD_ROOT}/Report"
+mkdir "${SFTP_UPLOAD_ROOT}/Report/Logs"
+mkdir "${SFTP_UPLOAD_ROOT}/Report/Errors"
+chown -R ${INSTALL_USER}:${SFTP_USER} "${SFTP_UPLOAD_ROOT}/Report"
+chown ${INSTALL_USER}:${SFTP_USER} "${SFTP_UPLOAD_ROOT}/Archive"
+chmod -R 750 "${SFTP_UPLOAD_ROOT}/Archive"
+chmod -R 750 "${SFTP_UPLOAD_ROOT}/Report"
+# Enable chroot SFTP for upload user
+cat >> /etc/ssh/sshd_config <<SSHD_CONFIG
+
+Match User $SFTP_USER
+  ChrootDirectory "$SFTP_UPLOAD_ROOT"
+  AuthenticationMethods publickey
+  X11Forwarding no
+  AllowTcpForwarding no
+  ForceCommand internal-sftp
+SSHD_CONFIG
+service ssh reload
 
 apt-get install software-properties-common -y
 # Install Java 8 and make it the default Java

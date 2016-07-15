@@ -21,6 +21,8 @@ git clone https://github.com/VTUL/geoblacklight-vagrant
 Configuration
 -------------
 
+In all environments, a chroot SFTP upload area is created on the installed server. The upload user is allowed to connect only using public key authentication when using SFTP. This means an `authorized_keys` file should be supplied locally to list the SSH public keys that are permitted to log in as the upload user. This file should be placed in the `files` directory prior to `vagrant up` and should be called `authorized_keys`. (It is in standard .ssh/authorized_keys format.) It can trivially be created by copying your SSH public key file to `files/authorized_keys`.
+
 ### AWS
 
 When using the `aws` provider to `vagrant up` it is necessary to define several environment variables in order to authenticate to AWS and supply a keypair with which Vagrant can log in to the new AWS EC2 instance being deployed.  These environment variables are as follows:

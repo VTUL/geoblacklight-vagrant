@@ -27,7 +27,6 @@ Vagrant.configure(2) do |config|
   config.vm.provider :aws do |aws, override|
     keypair = "#{ENV['KEYPAIR_NAME']}"
     keypair_filename = "#{ENV['KEYPAIR_FILE']}"
-    override.vm.synced_folder '.', '/vagrant', :disabled => true
     override.vm.box = "aws_dummy"
     override.vm.box_url = "https://github.com/mitchellh/vagrant-aws/raw/master/dummy.box"
     override.vm.box_check_update = false
@@ -50,7 +49,6 @@ Vagrant.configure(2) do |config|
   config.vm.provider :openstack do |os, override|
     keypair = "#{ENV['KEYPAIR_NAME']}"
     keypair_filename = "#{ENV['KEYPAIR_FILE']}"
-    override.vm.synced_folder '.', '/vagrant', :disabled => true
     override.vm.box = "openstack_dummy"
     override.vm.box_url = "https://github.com/cloudbau/vagrant-openstack-plugin/raw/master/dummy.box"
     override.vm.box_check_update = false

@@ -45,6 +45,7 @@ SOLR_LOGSIZE="100MB"
 # change the Solr URL in config/blacklight.yml accordingly
 SOLR_CORE="blacklight-core"
 RUN_AS_SOLR_USER="sudo -H -u $SOLR_USER"
+GEOBLACKLIGHT_SCHEMA_BRANCH="v0.3.2"
 SFTP_USER="upload"
 SFTP_HOME_DIR="/home/$SFTP_USER"
 SFTP_UPLOAD_ROOT="/opt/sftp/geodata"
@@ -213,7 +214,7 @@ service solr stop
 # Fetch GeoBlacklight schema files
 TMPFILE=$(mktemp -d)
 cd "$TMPFILE"
-git clone https://github.com/geoblacklight/geoblacklight-schema.git
+git clone --branch "$GEOBLACKLIGHT_SCHEMA_BRANCH" https://github.com/geoblacklight/geoblacklight-schema.git
 
 # Create Sufia Solr core
 cd $SOLR_DATA

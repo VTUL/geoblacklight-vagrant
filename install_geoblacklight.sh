@@ -215,7 +215,7 @@ cd $SOLR_DATA
 $RUN_AS_SOLR_USER mkdir -p ${SOLR_CORE}/conf
 $RUN_AS_SOLR_USER echo "name=$SOLR_CORE" > ${SOLR_CORE}/core.properties
 cp -R ${HYDRA_HEAD_DIR}/solr/conf/* "${SOLR_CORE}/conf"
-chmod -R ugo=rX "${SOLR_CORE}/conf"
+chmod -R u=rwX,go=rX "${SOLR_CORE}/conf"
 chown -R $SOLR_USER "${SOLR_CORE}/conf"
 
 # Adjust logging settings

@@ -15,7 +15,7 @@ SERVER_HOSTNAME="localhost"
 APP_ENV="development"
 HYDRA_HEAD="geoblacklight"
 HYDRA_HEAD_DIR="$INSTALL_DIR/$HYDRA_HEAD"
-HYDRA_HEAD_GIT_BRANCH="master"
+HYDRA_HEAD_GIT_BRANCH="geoblacklight_1.x"
 HYDRA_HEAD_GIT_REPO_URL="https://github.com/VTUL/geoblacklight.git"
 PASSENGER_REPO="/etc/apt/sources.list.d/passenger.list"
 PASSENGER_INSTANCES="1"
@@ -30,7 +30,7 @@ SSL_KEY="$SSL_KEY_DIR/$HYDRA_HEAD-key.pem"
 # User under which Solr runs.  We adopt the default, "solr"
 SOLR_USER="solr"
 # Which Solr version we will install
-SOLR_VERSION="5.5.2"
+SOLR_VERSION="6.1.0"
 SOLR_MIRROR="http://archive.apache.org/dist/lucene/solr/$SOLR_VERSION/"
 SOLR_DIST="solr-$SOLR_VERSION"
 # The directory under which we will install Solr.
@@ -45,7 +45,6 @@ SOLR_LOGSIZE="100MB"
 # change the Solr URL in config/blacklight.yml accordingly
 SOLR_CORE="blacklight-core"
 RUN_AS_SOLR_USER="sudo -H -u $SOLR_USER"
-GEOBLACKLIGHT_SCHEMA_BRANCH="v0.3.2"
 SFTP_USER="upload"
 SFTP_HOME_DIR="/home/$SFTP_USER"
 SFTP_UPLOAD_ROOT="/opt/sftp/geodata"
@@ -211,26 +210,17 @@ rm ./install_solr_service.sh
 # Stop Solr until we have created the core
 service solr stop
 
-# Fetch GeoBlacklight schema files
-TMPFILE=$(mktemp -d)
-cd "$TMPFILE"
-git clone --branch "$GEOBLACKLIGHT_SCHEMA_BRANCH" https://github.com/geoblacklight/geoblacklight-schema.git
-
 # Create Sufia Solr core
 cd $SOLR_DATA
 $RUN_AS_SOLR_USER mkdir -p ${SOLR_CORE}/conf
 $RUN_AS_SOLR_USER echo "name=$SOLR_CORE" > ${SOLR_CORE}/core.properties
-install -o $SOLR_USER -m 444 $TMPFILE/geoblacklight-schema/conf/solrconfig.xml ${SOLR_CORE}/conf/solrconfig.xml
-install -o $SOLR_USER -m 444 $TMPFILE/geoblacklight-schema/conf/schema.xml ${SOLR_CORE}/conf/schema.xml
-install -o $SOLR_USER -m 444 $TMPFILE/geoblacklight-schema/conf/protwords.txt ${SOLR_CORE}/conf/protwords.txt
-install -o $SOLR_USER -m 444 $TMPFILE/geoblacklight-schema/conf/stopwords_en.txt ${SOLR_CORE}/conf/stopwords_en.txt
-install -o $SOLR_USER -m 444 $TMPFILE/geoblacklight-schema/conf/synonyms.txt ${SOLR_CORE}/conf/synonyms.txt
+cp -R ${HYDRA_HEAD_DIR}/solr/conf/* "${SOLR_CORE}/conf"
+chmod -R u=rwX,go=rX "${SOLR_CORE}/conf"
+chown -R $SOLR_USER "${SOLR_CORE}/conf"
 
 # Adjust logging settings
 $RUN_AS_SOLR_USER sed -i 's/^log4j.rootLogger=.*$/log4j.rootLogger=WARN, file/' /var/solr/log4j.properties
 $RUN_AS_SOLR_USER sed -i "s/file.MaxFileSize=.*$/file.MaxFileSize=${SOLR_LOGSIZE}/" /var/solr/log4j.properties
-# Remove GeoBlacklight schema repository files now we have installed them
-rm -rf "$TMPFILE"
 
 # Start services
 service solr start

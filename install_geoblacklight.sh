@@ -15,7 +15,7 @@ SERVER_HOSTNAME="localhost"
 APP_ENV="development"
 HYDRA_HEAD="geoblacklight"
 HYDRA_HEAD_DIR="$INSTALL_DIR/$HYDRA_HEAD"
-HYDRA_HEAD_GIT_BRANCH="geoblacklight_1.x"
+HYDRA_HEAD_GIT_BRANCH="master"
 HYDRA_HEAD_GIT_REPO_URL="https://github.com/VTUL/geoblacklight.git"
 PASSENGER_REPO="/etc/apt/sources.list.d/passenger.list"
 PASSENGER_INSTANCES="1"
@@ -114,7 +114,7 @@ apt-get install -y oracle-java8-installer
 update-java-alternatives -s java-8-oracle
 add-apt-repository -y ppa:brightbox/ruby-ng
 apt-get update
-apt-get install -y ruby2.2 ruby2.2-dev
+apt-get install -y ruby2.3 ruby2.3-dev
 apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 561F9B9CAC40B2F7
 apt-get install -y apt-transport-https ca-certificates
 echo "deb https://oss-binaries.phusionpassenger.com/apt/passenger trusty main" > /etc/apt/sources.list.d/passenger.list
@@ -173,14 +173,15 @@ chown root "$SSL_KEY"
 apt-get install -y git sqlite3 libsqlite3-dev zlib1g-dev build-essential
 # Install a JavaScript runtime to allow the uglifier gem to run
 apt-get install -y nodejs
+gem update --system
 gem install bundler
 cd "$INSTALL_DIR"
 $RUN_AS_INSTALLUSER git clone --branch "$HYDRA_HEAD_GIT_BRANCH" "$HYDRA_HEAD_GIT_REPO_URL" "$HYDRA_HEAD_DIR"
 cd "$HYDRA_HEAD_DIR"
 if [ "$APP_ENV" = "production" ]; then
-  $RUN_AS_INSTALLUSER bundle install --without development test
+  bundle install --without development test
 else
-  $RUN_AS_INSTALLUSER bundle install
+  bundle install
 fi
 
 # Set up the GeoBlacklight application
